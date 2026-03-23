@@ -140,10 +140,10 @@ header { display:flex; justify-content:space-between; align-items:center; paddin
   <div class="settings-inner">
     <div class="settings-title">Ajustes</div>
     <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">
-      Claude API Key · <a href="https://console.anthropic.com" target="_blank" style="color:var(--green)">console.anthropic.com</a>
+      Gemini API Key · <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--green)">aistudio.google.com</a>
     </div>
     <div class="key-row">
-      <input type="password" id="claudeKeyInput" placeholder="sk-ant-...">
+      <input type="password" id="claudeKeyInput" placeholder="AIza...">
       <button class="key-btn" onclick="saveClaudeKey()">Guardar</button>
     </div>
     <div style="font-size:10px;color:var(--muted);margin-bottom:8px;margin-top:12px;">
@@ -168,7 +168,7 @@ header { display:flex; justify-content:space-between; align-items:center; paddin
 
   <!-- STATUS PILLS -->
   <div class="status-bar" id="statusBar">
-    <span class="status-pill pill-off" id="pillClaude">Claude ·</span>
+    <span class="status-pill pill-off" id="pillClaude">Gemini ·</span>
     <span class="status-pill pill-off" id="pillAirlabs">AirLabs ·</span>
     <span class="status-pill pill-off" id="pillMic">Mic ·</span>
     <span class="status-pill pill-off" id="pillGps">GPS ·</span>
@@ -183,7 +183,7 @@ header { display:flex; justify-content:space-between; align-items:center; paddin
 
   <!-- RESPUESTA IA -->
   <div class="ai-response" id="aiResponse">
-    <div class="ai-label">Análisis Claude</div>
+    <div class="ai-label">Análisis Gemini</div>
     <div class="ai-text" id="aiText"></div>
     <div class="ai-recom" id="aiRecom"></div>
   </div>
@@ -307,7 +307,7 @@ function getLicencia()    { return localStorage.getItem('tr_licencia') || '945';
 function updateStatusPills() {
   const pillC = document.getElementById('pillClaude');
   const pillA = document.getElementById('pillAirlabs');
-  pillC.textContent = getClaudeKey()   ? 'Claude · OK'   : 'Claude · ';
+  pillC.textContent = getClaudeKey()   ? 'Gemini · OK'   : 'Gemini · ';
   pillA.textContent = getAirlabsKey()  ? 'AirLabs · OK'  : 'AirLabs · ';
   pillC.className = 'status-pill ' + (getClaudeKey()  ? 'pill-ok' : 'pill-off');
   pillA.className = 'status-pill ' + (getAirlabsKey() ? 'pill-ok' : 'pill-off');
@@ -427,7 +427,7 @@ function clearCapture() {
 
 async function analyzeZonas() {
   const key = getClaudeKey();
-  if (!key) { showAiResponse('warn', 'Configura tu API key de Claude en ajustes.', ''); return; }
+  if (!key) { showAiResponse('warn', 'Configura tu API key de Gemini en ajustes.', ''); return; }
   if (!capturedImageBase64) { showAiResponse('warn', 'Primero sube una captura de Smart TD.', ''); return; }
 
   document.getElementById('analyzeBtn').innerHTML = '<span class="spinner"></span>Analizando...';
@@ -470,32 +470,29 @@ RAZON: [explicación breve en 1-2 frases]
 ALERTA: [solo si hay algo urgente, si no deja vacío]`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [{
-            type: 'image',
-            source: { type: 'base64', media_type: 'image/jpeg', data: capturedImageBase64 }
-          }, {
-            type: 'text',
-            text: prompt
-          }]
-        }]
-      })
-    });
-
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: 'image/jpeg', data: capturedImageBase64 } },
+              { text: prompt }
+            ]
+          }],
+          generationConfig: { maxOutputTokens: 1000, temperature: 0.3 }
+        })
+      }
+    );
     if (!response.ok) throw new Error('API error ' + response.status);
     const data = await response.json();
-    const text = data.content[0].text;
+    const text = data.candidates[0].content.parts[0].text;
     processZonasResponse(text);
     addHistorial('Análisis zonas', text.split('\n')[0]);
   } catch(e) {
-    showAiResponse('warn', 'Error conectando con Claude: ' + e.message, '');
+    showAiResponse('warn', 'Error conectando con Gemini: ' + e.message, '');
   }
 
   document.getElementById('analyzeBtn').innerHTML = '🔍 Analizar zonas';
@@ -550,7 +547,7 @@ function renderZonas(zonas) {
 
 async function analizarAeropuerto() {
   const key = getClaudeKey();
-  if (!key) { showAiResponse('warn', 'Configura tu API key de Claude en ajustes.', ''); return; }
+  if (!key) { showAiResponse('warn', 'Configura tu API key de Gemini en ajustes.', ''); return; }
 
   const toldos = parseInt(document.getElementById('toldosInput').value) || 0;
   const llegadasCoches = parseInt(document.getElementById('llegadasCochesInput').value) || 0;
@@ -597,17 +594,19 @@ TIEMPO_ESPERA: [estimación en minutos hasta que te toque]
 CARRERA_PROBABLE: [tipo y precio estimado]`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 500,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 500, temperature: 0.3 }
+        })
+      }
+    );
     const data = await response.json();
-    const text = data.content[0].text;
+    const text = data.candidates[0].content.parts[0].text;
     const lines = text.split('\n');
     let recom = '', razon = '', espera = '', carrera = '';
     lines.forEach(l => {
@@ -627,23 +626,25 @@ CARRERA_PROBABLE: [tipo y precio estimado]`;
 
 async function askClaude(pregunta) {
   const key = getClaudeKey();
-  if (!key) { showAiResponse('warn', 'Configura tu API key de Claude en ajustes.', ''); return; }
+  if (!key) { showAiResponse('warn', 'Configura tu API key de Gemini en ajustes.', ''); return; }
 
   const hora = new Date().toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
   const prompt = `Eres el copiloto de un taxista en Mallorca (playa de Palma). Son las ${hora}. El taxista pregunta: "${pregunta}". Responde de forma breve y útil para un taxista.`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 300, temperature: 0.5 }
+        })
+      }
+    );
     const data = await response.json();
-    const text = data.content[0].text;
+    const text = data.candidates[0].content.parts[0].text;
     showAiResponse('ok', text, '');
     speakText(text);
     addHistorial(pregunta.slice(0,30), text.slice(0,60));
