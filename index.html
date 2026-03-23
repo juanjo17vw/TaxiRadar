@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TaxiRadar">
+<link rel="apple-touch-icon" href="taxiradar-icon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaxiRadar</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@600;700;800&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0d11; --card: #13151b; --border: #1d2029;
+  --green: #6c6de8; --orange: #ff6b35; --yellow: #f0c040; --red: #ff4757;
+  --text: #e8eaf0; --muted: #555a6a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'DM Mono',monospace; min-height:100vh; }
+header { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10; }
+.brand { font-family:'Syne',sans-serif; font-weight:800; font-size:16px; }
+.brand em { color:var(--green); font-style:normal; }
+.clock { font-size:12px; color:var(--muted); }
+.container { max-width:560px; margin:0 auto; padding:16px 20px; }
+
+/* SETTINGS */
+#settingsPanel { display:none; background:var(--card); border-bottom:1px solid var(--border); padding:16px 20px; }
+.settings-inner { max-width:560px; margin:0 auto; }
+.settings-title { font-size:9px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-bottom:10px; }
+.key-row { display:flex; gap:8px; margin-bottom:8px; }
+.key-row input { flex:1; padding:9px 12px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'DM Mono',monospace; font-size:12px; outline:none; }
+.key-row input:focus { border-color:var(--green); }
+.key-btn { padding:9px 16px; background:var(--green); color:#000; font-family:'Syne',sans-serif; font-weight:700; font-size:11px; border:none; border-radius:6px; cursor:pointer; }
+.key-status { font-size:10px; color:var(--green); }
+
+/* MIC BUTTON */
+.mic-section { text-align:center; padding:20px 0 10px; }
+.mic-btn { width:80px; height:80px; border-radius:50%; border:2px solid var(--green); background:transparent; color:var(--green); font-size:28px; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; }
+.mic-btn.listening { background:rgba(108,109,232,0.15); border-color:var(--orange); color:var(--orange); animation:pulse 1s infinite; }
+.mic-btn.processing { background:rgba(108,109,232,0.1); opacity:0.7; }
+@keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.05);} }
+.mic-label { font-size:10px; color:var(--muted); margin-top:8px; letter-spacing:2px; text-transform:uppercase; }
+.transcript { font-size:11px; color:var(--yellow); text-align:center; min-height:16px; margin-top:6px; }
+
+/* RESPUESTA IA */
+.ai-response { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin:14px 0; display:none; }
+.ai-response.show { display:block; }
+.ai-label { font-size:9px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+.ai-text { font-size:13px; line-height:1.6; color:var(--text); }
+.ai-recom { font-family:'Syne',sans-serif; font-weight:800; font-size:18px; color:var(--green); margin-top:10px; }
+.ai-recom.warn { color:var(--yellow); }
+.ai-recom.bad  { color:var(--red); }
+
+/* CAPTURA */
+.capture-section { margin:14px 0; }
+.capture-label { font-size:9px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+.capture-area { background:var(--card); border:1px dashed var(--border); border-radius:10px; padding:14px; text-align:center; position:relative; }
+.capture-preview { width:100%; border-radius:6px; display:none; margin-bottom:10px; }
+.capture-preview.show { display:block; }
+.capture-empty { color:var(--muted); font-size:11px; padding:20px 0; }
+.capture-btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+.cap-btn { padding:10px; background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'Syne',sans-serif; font-weight:700; font-size:11px; cursor:pointer; transition:all 0.2s; }
+.cap-btn:hover { border-color:var(--green); color:var(--green); }
+.cap-btn.primary { background:var(--green); color:#000; border-color:var(--green); }
+#fileInput { display:none; }
+
+/* ZONAS */
+.zonas-grid { display:flex; flex-direction:column; gap:8px; margin:14px 0; }
+.zona-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; }
+.zona-card.buena  { border-color:rgba(108,109,232,0.5); }
+.zona-card.media  { border-color:var(--yellow); }
+.zona-card.mala   { border-color:rgba(255,71,87,0.4); }
+.zona-nombre { font-family:'Syne',sans-serif; font-weight:700; font-size:14px; }
+.zona-datos  { font-size:10px; color:var(--muted); margin-top:3px; }
+.zona-score  { font-family:'Syne',sans-serif; font-weight:800; font-size:20px; }
+.zona-score.buena { color:var(--green); }
+.zona-score.media { color:var(--yellow); }
+.zona-score.mala  { color:var(--red); }
+
+/* VUELOS */
+.vuelos-section { margin:14px 0; }
+.vuelos-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.vuelos-label { font-size:9px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; }
+.refresh-vuelos { padding:5px 12px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--muted); font-family:'DM Mono',monospace; font-size:10px; cursor:pointer; }
+.refresh-vuelos:hover { border-color:var(--green); color:var(--green); }
+.vuelo-item { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
+.vuelo-info { font-size:11px; }
+.vuelo-num  { font-family:'Syne',sans-serif; font-weight:700; font-size:13px; }
+.vuelo-orig { color:var(--muted); font-size:10px; margin-top:2px; }
+.vuelo-eta  { text-align:right; }
+.vuelo-hora { font-family:'Syne',sans-serif; font-weight:700; font-size:14px; color:var(--green); }
+.vuelo-pax  { font-size:10px; color:var(--muted); margin-top:2px; }
+.vuelo-dest { font-size:10px; margin-top:2px; }
+
+/* AEROPUERTO */
+.aero-section { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin:14px 0; }
+.aero-title { font-size:9px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-bottom:12px; }
+.aero-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.aero-key { font-size:11px; color:var(--muted); }
+.aero-val { font-family:'Syne',sans-serif; font-weight:700; font-size:13px; }
+.toldos-input { display:flex; gap:8px; align-items:center; margin-top:8px; }
+.toldos-input input { width:60px; padding:7px 10px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'DM Mono',monospace; font-size:14px; text-align:center; outline:none; }
+.toldos-input input:focus { border-color:var(--green); }
+.toldos-btn { padding:7px 14px; background:var(--green); color:#000; font-family:'Syne',sans-serif; font-weight:700; font-size:11px; border:none; border-radius:6px; cursor:pointer; }
+
+/* STATUS BAR */
+.status-bar { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0; }
+.status-pill { padding:3px 10px; border-radius:20px; font-size:10px; font-family:'Syne',sans-serif; font-weight:700; }
+.pill-ok   { background:rgba(108,109,232,0.12); color:var(--green); border:1px solid rgba(108,109,232,0.3); }
+.pill-warn { background:rgba(240,192,64,0.12); color:var(--yellow); border:1px solid rgba(240,192,64,0.3); }
+.pill-off  { background:rgba(85,90,106,0.12); color:var(--muted); border:1px solid var(--border); }
+
+/* HISTORIAL */
+.historial { margin:14px 0; }
+.hist-label { font-size:9px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+.hist-item { font-size:10px; color:var(--muted); padding:6px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
+.hist-item:last-child { border-bottom:none; }
+.hist-hora { color:var(--green); }
+
+/* SPINNER */
+.spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--green); border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:6px; }
+@keyframes spin { to{transform:rotate(360deg);} }
+
+/* LAST UPDATE */
+.last-update { text-align:center; font-size:10px; color:var(--muted); margin:8px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">TAXI<em>·RADAR</em></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="clock" id="clock">--:--:--</div>
+    <button onclick="toggleSettings()" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:2px 6px;">⚙️</button>
+  </div>
+</header>
+
+<!-- SETTINGS -->
+<div id="settingsPanel">
+  <div class="settings-inner">
+    <div class="settings-title">Ajustes</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">
+      Claude API Key · <a href="https://console.anthropic.com" target="_blank" style="color:var(--green)">console.anthropic.com</a>
+    </div>
+    <div class="key-row">
+      <input type="password" id="claudeKeyInput" placeholder="sk-ant-...">
+      <button class="key-btn" onclick="saveClaudeKey()">Guardar</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px;margin-top:12px;">
+      AirLabs API Key · <a href="https://airlabs.co" target="_blank" style="color:var(--green)">airlabs.co</a>
+    </div>
+    <div class="key-row">
+      <input type="password" id="airlabsKeyInput" placeholder="tu_api_key_airlabs">
+      <button class="key-btn" onclick="saveAirlabsKey()">Guardar</button>
+    </div>
+    <div class="key-status" id="keyStatus"></div>
+    <div style="margin-top:12px;">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Tu licencia (para identificarte en Smart TD)</div>
+      <div class="key-row">
+        <input type="text" id="licenciaInput" placeholder="945" style="max-width:120px;">
+        <button class="key-btn" onclick="saveLicencia()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- STATUS PILLS -->
+  <div class="status-bar" id="statusBar">
+    <span class="status-pill pill-off" id="pillClaude">Claude ·</span>
+    <span class="status-pill pill-off" id="pillAirlabs">AirLabs ·</span>
+    <span class="status-pill pill-off" id="pillMic">Mic ·</span>
+    <span class="status-pill pill-off" id="pillGps">GPS ·</span>
+  </div>
+
+  <!-- MIC -->
+  <div class="mic-section">
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎙</button>
+    <div class="mic-label" id="micLabel">Pulsa y habla</div>
+    <div class="transcript" id="transcript"></div>
+  </div>
+
+  <!-- RESPUESTA IA -->
+  <div class="ai-response" id="aiResponse">
+    <div class="ai-label">Análisis Claude</div>
+    <div class="ai-text" id="aiText"></div>
+    <div class="ai-recom" id="aiRecom"></div>
+  </div>
+
+  <!-- CAPTURA SMART TD -->
+  <div class="capture-section">
+    <div class="capture-label">Pantalla Smart TD (iPhone 2)</div>
+    <div class="capture-area">
+      <img class="capture-preview" id="capturePreview" alt="Smart TD">
+      <div class="capture-empty" id="captureEmpty">Sube captura de Smart TD o usa la cámara</div>
+      <div class="capture-btns">
+        <button class="cap-btn" onclick="document.getElementById('fileInput').click()">📁 Archivo</button>
+        <button class="cap-btn" onclick="openCamera()">📷 Cámara</button>
+        <button class="cap-btn primary" id="analyzeBtn" onclick="analyzeZonas()" style="display:none;">🔍 Analizar zonas</button>
+        <button class="cap-btn" id="clearBtn" onclick="clearCapture()" style="display:none;">✕ Limpiar</button>
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" onchange="handleFile(event)">
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleFile(event)" style="display:none;">
+  </div>
+
+  <!-- ZONAS ANALIZADAS -->
+  <div id="zonasContainer" style="display:none;">
+    <div style="font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Zonas analizadas</div>
+    <div class="zonas-grid" id="zonasGrid"></div>
+  </div>
+
+  <!-- AEROPUERTO -->
+  <div class="aero-section">
+    <div class="aero-title">Aeropuerto PMI</div>
+    <div class="aero-row">
+      <div class="aero-key">Toldos llenos (visual)</div>
+      <div>
+        <div class="toldos-input">
+          <input type="number" id="toldosInput" min="0" max="9" value="0" onchange="saveToldos()">
+          <button class="toldos-btn" onclick="analizarAeropuerto()">Analizar</button>
+        </div>
+      </div>
+    </div>
+    <div class="aero-row">
+      <div class="aero-key">Llegadas (Smart TD)</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="number" id="llegadasCochesInput" min="0" max="99" value="0" placeholder="coches" style="width:60px;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;text-align:center;outline:none;">
+        <input type="time" id="llegadasPrimeroInput" style="padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;">
+      </div>
+    </div>
+    <div class="aero-row" style="margin-top:4px;">
+      <div class="aero-key">Tu posición en cola</div>
+      <input type="number" id="miPosicionInput" min="1" max="99" value="1" style="width:60px;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:14px;text-align:center;outline:none;">
+    </div>
+  </div>
+
+  <!-- VUELOS PMI -->
+  <div class="vuelos-section">
+    <div class="vuelos-header">
+      <div class="vuelos-label">Vuelos llegando PMI</div>
+      <button class="refresh-vuelos" onclick="fetchVuelos()">↻ Actualizar</button>
+    </div>
+    <div id="vuelosContainer">
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;">Pulsa actualizar para ver vuelos</div>
+    </div>
+    <div class="last-update" id="vuelosUpdate"></div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="historial" id="historialSection" style="display:none;">
+    <div class="hist-label">Últimas consultas</div>
+    <div id="historialList"></div>
+  </div>
+
+</div>
+
+<script>
+const PROXY_LIST = [
+  u => `https://shy-glade-1079.juanjojimenez89.workers.dev/?url=${encodeURIComponent(u)}`,
+  u => `https://api.cors.lol/?url=${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+];
+
+let capturedImageBase64 = null;
+let recognition = null;
+let isListening = false;
+let gpsCoords = null;
+let historial = [];
+
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES');
+}, 1000);
+
+function toggleSettings() {
+  const p = document.getElementById('settingsPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveClaudeKey() {
+  const k = document.getElementById('claudeKeyInput').value.trim();
+  if (!k) return;
+  localStorage.setItem('tr_claude_key', k);
+  document.getElementById('keyStatus').textContent = '✓ Claves guardadas';
+  updateStatusPills();
+}
+function saveAirlabsKey() {
+  const k = document.getElementById('airlabsKeyInput').value.trim();
+  if (!k) return;
+  localStorage.setItem('al_key', k);
+  document.getElementById('keyStatus').textContent = '✓ Claves guardadas';
+  updateStatusPills();
+}
+function saveLicencia() {
+  const v = document.getElementById('licenciaInput').value.trim();
+  if (v) localStorage.setItem('tr_licencia', v);
+}
+function saveToldos() {
+  localStorage.setItem('tr_toldos', document.getElementById('toldosInput').value);
+}
+function getClaudeKey()   { return localStorage.getItem('tr_claude_key') || ''; }
+function getAirlabsKey()  { return localStorage.getItem('al_key') || ''; }
+function getLicencia()    { return localStorage.getItem('tr_licencia') || '945'; }
+
+function updateStatusPills() {
+  const pillC = document.getElementById('pillClaude');
+  const pillA = document.getElementById('pillAirlabs');
+  pillC.textContent = getClaudeKey()   ? 'Claude · OK'   : 'Claude · ';
+  pillA.textContent = getAirlabsKey()  ? 'AirLabs · OK'  : 'AirLabs · ';
+  pillC.className = 'status-pill ' + (getClaudeKey()  ? 'pill-ok' : 'pill-off');
+  pillA.className = 'status-pill ' + (getAirlabsKey() ? 'pill-ok' : 'pill-off');
+}
+
+function initGPS() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.watchPosition(pos => {
+    gpsCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    const pill = document.getElementById('pillGps');
+    pill.textContent = 'GPS · OK';
+    pill.className = 'status-pill pill-ok';
+  }, () => {
+    const pill = document.getElementById('pillGps');
+    pill.textContent = 'GPS · ';
+    pill.className = 'status-pill pill-off';
+  });
+}
+
+function initSpeech() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) return;
+  recognition = new SpeechRec();
+  recognition.lang = 'es-ES';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.onresult = e => {
+    const t = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('transcript').textContent = t;
+    if (e.results[e.results.length-1].isFinal) {
+      procesarComando(t.toLowerCase().trim());
+    }
+  };
+  recognition.onend = () => stopListening();
+  recognition.onerror = () => stopListening();
+  const pill = document.getElementById('pillMic');
+  pill.textContent = 'Mic · OK';
+  pill.className = 'status-pill pill-ok';
+}
+
+function toggleMic() {
+  if (isListening) stopListening();
+  else startListening();
+}
+function startListening() {
+  if (!recognition) { initSpeech(); if (!recognition) { alert('Tu navegador no soporta reconocimiento de voz'); return; } }
+  recognition.start();
+  isListening = true;
+  document.getElementById('micBtn').classList.add('listening');
+  document.getElementById('micLabel').textContent = 'Escuchando...';
+  document.getElementById('transcript').textContent = '';
+}
+function stopListening() {
+  if (recognition) recognition.stop();
+  isListening = false;
+  document.getElementById('micBtn').classList.remove('listening');
+  document.getElementById('micBtn').classList.remove('processing');
+  document.getElementById('micLabel').textContent = 'Pulsa y habla';
+}
+
+function procesarComando(cmd) {
+  document.getElementById('micBtn').classList.add('processing');
+  document.getElementById('micLabel').textContent = 'Procesando...';
+
+  if (cmd.includes('dónde voy') || cmd.includes('donde voy') || cmd.includes('analiza zonas') || cmd.includes('qué zona') || cmd.includes('que zona')) {
+    if (capturedImageBase64) analyzeZonas();
+    else showAiResponse('warn', 'Primero sube una captura de Smart TD para que pueda ver las zonas.', '');
+    return;
+  }
+  if (cmd.includes('aeropuerto') || cmd.includes('llegadas')) {
+    analizarAeropuerto();
+    return;
+  }
+  if (cmd.includes('vuelos')) {
+    fetchVuelos();
+    return;
+  }
+  const toldosMatch = cmd.match(/(\d+)\s*toldos?/);
+  if (toldosMatch) {
+    document.getElementById('toldosInput').value = toldosMatch[1];
+    saveToldos();
+    analizarAeropuerto();
+    return;
+  }
+  askClaude(cmd);
+}
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    capturedImageBase64 = dataUrl.split(',')[1];
+    const preview = document.getElementById('capturePreview');
+    preview.src = dataUrl;
+    preview.classList.add('show');
+    document.getElementById('captureEmpty').style.display = 'none';
+    document.getElementById('analyzeBtn').style.display = 'block';
+    document.getElementById('clearBtn').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function openCamera() {
+  document.getElementById('cameraInput').click();
+}
+function clearCapture() {
+  capturedImageBase64 = null;
+  document.getElementById('capturePreview').classList.remove('show');
+  document.getElementById('captureEmpty').style.display = 'block';
+  document.getElementById('analyzeBtn').style.display = 'none';
+  document.getElementById('clearBtn').style.display = 'none';
+  document.getElementById('zonasContainer').style.display = 'none';
+}
+
+async function analyzeZonas() {
+  const key = getClaudeKey();
+  if (!key) { showAiResponse('warn', 'Configura tu API key de Claude en ajustes.', ''); return; }
+  if (!capturedImageBase64) { showAiResponse('warn', 'Primero sube una captura de Smart TD.', ''); return; }
+
+  document.getElementById('analyzeBtn').innerHTML = '<span class="spinner"></span>Analizando...';
+  document.getElementById('analyzeBtn').disabled = true;
+
+  const licencia = getLicencia();
+  const hora = new Date().toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+  const diaSemana = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][new Date().getDay()];
+
+  const prompt = `Eres el copiloto de un taxista en Mallorca. Analiza esta captura de pantalla de Smart TD.
+
+CONTEXTO:
+- Son las ${hora} de un ${diaSemana}
+- La licencia del taxista es ***${licencia}
+- Zona de trabajo: playa de Palma (Arenal, América, Riu, Sometimes, Can Pastilla, Aqualand)
+- También trabaja el aeropuerto (Llegadas)
+
+LÓGICA DE ZONAS (MUY IMPORTANTE):
+- La columna Z = coches esperando en zona
+- La columna O = servicios sin cubrir (¡OPORTUNIDAD! Vale x3)
+- La columna S = reservas próximas (aparecen 20min antes, entran si eres 1º con 5min)
+- Tiempo del 1º en zona: POCO tiempo = zona ACTIVA (servicios saliendo rápido) ✅
+- Tiempo del 1º en zona: MUCHO tiempo = zona PARADA ❌
+- Si hay coches en Autopista 5 van hacia Riu, Autopista 6 hacia América
+- Las zonas fluyen entre sí: Arenal ↔ América ↔ Riu ↔ Sometimes ↔ Can Pastilla
+
+HORARIO DE ESTE TAXISTA:
+- 16h-20h: Playa vale más, muchos servicios turísticos
+- 20h-22h: Transición, aeropuerto empieza a valer
+- 22h-04h: Aeropuerto es rey (mínimo 17€ garantizado, posible Alcudia/Andratx 60-80€)
+
+Lee todas las zonas visibles en la imagen con sus valores P, Z, O, S.
+Si ves la lista de coches de una zona específica, fíjate en la hora del PRIMER coche (menos tiempo = más activo).
+Identifica si el taxista (licencia ***${licencia}) aparece en alguna lista.
+
+Responde en este formato exacto:
+ZONAS: [lista de zonas con Z, O, S y valoración 🟢🟡🔴]
+RECOMENDACION: [zona concreta o acción]
+RAZON: [explicación breve en 1-2 frases]
+ALERTA: [solo si hay algo urgente, si no deja vacío]`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [{
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/jpeg', data: capturedImageBase64 }
+          }, {
+            type: 'text',
+            text: prompt
+          }]
+        }]
+      })
+    });
+
+    if (!response.ok) throw new Error('API error ' + response.status);
+    const data = await response.json();
+    const text = data.content[0].text;
+    processZonasResponse(text);
+    addHistorial('Análisis zonas', text.split('\n')[0]);
+  } catch(e) {
+    showAiResponse('warn', 'Error conectando con Claude: ' + e.message, '');
+  }
+
+  document.getElementById('analyzeBtn').innerHTML = '🔍 Analizar zonas';
+  document.getElementById('analyzeBtn').disabled = false;
+}
+
+function processZonasResponse(text) {
+  const lines = text.split('\n');
+  let recomendacion = '';
+  let razon = '';
+  let alerta = '';
+  const zonas = [];
+
+  lines.forEach(line => {
+    if (line.startsWith('RECOMENDACION:')) recomendacion = line.replace('RECOMENDACION:', '').trim();
+    if (line.startsWith('RAZON:')) razon = line.replace('RAZON:', '').trim();
+    if (line.startsWith('ALERTA:') && line.length > 8) alerta = line.replace('ALERTA:', '').trim();
+    if (line.startsWith('ZONAS:')) {
+      const zonasStr = line.replace('ZONAS:', '').trim();
+      const zonasRaw = zonasStr.split(',');
+      zonasRaw.forEach(z => {
+        const match = z.match(/([A-Z\s]+)\s*(🟢|🟡|🔴)/);
+        if (match) zonas.push({ nombre: match[1].trim(), estado: match[2] });
+      });
+    }
+  });
+
+  const aiText = razon + (alerta ? '\n\n⚠️ ' + alerta : '');
+  const nivel = recomendacion.includes('🟢') ? '' : recomendacion.includes('🔴') ? 'bad' : 'warn';
+  showAiResponse('ok', aiText, recomendacion, nivel);
+  speakText(recomendacion + '. ' + razon);
+
+  if (zonas.length > 0) {
+    renderZonas(zonas);
+  }
+}
+
+function renderZonas(zonas) {
+  const container = document.getElementById('zonasContainer');
+  const grid = document.getElementById('zonasGrid');
+  container.style.display = 'block';
+  grid.innerHTML = zonas.map(z => {
+    const clase = z.estado === '🟢' ? 'buena' : z.estado === '🟡' ? 'media' : 'mala';
+    return `<div class="zona-card ${clase}">
+      <div>
+        <div class="zona-nombre">${z.nombre}</div>
+      </div>
+      <div class="zona-score ${clase}">${z.estado}</div>
+    </div>`;
+  }).join('');
+}
+
+async function analizarAeropuerto() {
+  const key = getClaudeKey();
+  if (!key) { showAiResponse('warn', 'Configura tu API key de Claude en ajustes.', ''); return; }
+
+  const toldos = parseInt(document.getElementById('toldosInput').value) || 0;
+  const llegadasCoches = parseInt(document.getElementById('llegadasCochesInput').value) || 0;
+  const llegadasPrimero = document.getElementById('llegadasPrimeroInput').value || '';
+  const miPosicion = parseInt(document.getElementById('miPosicionInput').value) || 1;
+  const hora = new Date().toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+  const diaSemana = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][new Date().getDay()];
+
+  let tiempoPrimero = '';
+  if (llegadasPrimero) {
+    const [h, m] = llegadasPrimero.split(':').map(Number);
+    const now = new Date();
+    const entradaDate = new Date(now);
+    entradaDate.setHours(h, m, 0);
+    const diffMin = Math.floor((now - entradaDate) / 60000);
+    tiempoPrimero = diffMin > 0 ? `${diffMin} minutos` : 'recién llegado';
+  }
+
+  const vuelosText = getVuelosText();
+
+  const prompt = `Eres el copiloto de un taxista en Mallorca. Analiza si vale la pena estar en el aeropuerto ahora.
+
+DATOS ACTUALES:
+- Hora: ${hora} (${diaSemana})
+- Toldos llenos (reserva): ${toldos} de 9 (~${toldos * 8}-${toldos * 9} taxis)
+- Coches en Llegadas: ${llegadasCoches}
+- El primero en Llegadas lleva: ${tiempoPrimero || 'desconocido'}
+- Tu posición en cola: ${miPosicion}º
+
+VUELOS PRÓXIMOS:
+${vuelosText || 'Sin datos de vuelos disponibles'}
+
+REGLAS:
+- Tiempo 1º POCO = zona activa ✅ | MUCHO = parada ❌
+- Mínimo garantizado: 17€ | Posible largo: Alcudia/Andratx 60-80€
+- Vuelos UK → Calvià/Magaluf (~45€) | Alemania → playa (~30€) | Nacional → Palma (~18€)
+- Vuelos no Schengen (UK) tardan +60min en llegar a parada | Schengen +40min
+- Después de las 22h el aeropuerto SIEMPRE vale más que la playa
+
+Responde:
+RECOMENDACION: [quedarse / irse a zona / esperar X min]
+RAZON: [1-2 frases]
+TIEMPO_ESPERA: [estimación en minutos hasta que te toque]
+CARRERA_PROBABLE: [tipo y precio estimado]`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content[0].text;
+    const lines = text.split('\n');
+    let recom = '', razon = '', espera = '', carrera = '';
+    lines.forEach(l => {
+      if (l.startsWith('RECOMENDACION:')) recom = l.replace('RECOMENDACION:', '').trim();
+      if (l.startsWith('RAZON:')) razon = l.replace('RAZON:', '').trim();
+      if (l.startsWith('TIEMPO_ESPERA:')) espera = l.replace('TIEMPO_ESPERA:', '').trim();
+      if (l.startsWith('CARRERA_PROBABLE:')) carrera = l.replace('CARRERA_PROBABLE:', '').trim();
+    });
+    const info = razon + (espera ? `\nEspera estimada: ${espera}` : '') + (carrera ? `\nCarrera probable: ${carrera}` : '');
+    showAiResponse('ok', info, recom);
+    speakText(recom + '. ' + razon);
+    addHistorial('Aeropuerto', recom);
+  } catch(e) {
+    showAiResponse('warn', 'Error: ' + e.message, '');
+  }
+}
+
+async function askClaude(pregunta) {
+  const key = getClaudeKey();
+  if (!key) { showAiResponse('warn', 'Configura tu API key de Claude en ajustes.', ''); return; }
+
+  const hora = new Date().toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+  const prompt = `Eres el copiloto de un taxista en Mallorca (playa de Palma). Son las ${hora}. El taxista pregunta: "${pregunta}". Responde de forma breve y útil para un taxista.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content[0].text;
+    showAiResponse('ok', text, '');
+    speakText(text);
+    addHistorial(pregunta.slice(0,30), text.slice(0,60));
+  } catch(e) {
+    showAiResponse('warn', 'Error: ' + e.message, '');
+  }
+  stopListening();
+}
+
+async function fetchVuelos() {
+  const key = getAirlabsKey();
+  if (!key) { document.getElementById('vuelosContainer').innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;">Configura tu API key de AirLabs en ajustes</div>'; return; }
+
+  document.getElementById('vuelosContainer').innerHTML = '<div style="text-align:center;padding:20px;font-size:11px;"><span class="spinner"></span>Cargando vuelos...</div>';
+
+  const apiUrl = `https://airlabs.co/api/v9/schedules?arr_iata=PMI&api_key=${key}`;
+
+  for (const makeProxy of PROXY_LIST) {
+    try {
+      const res = await fetch(makeProxy(apiUrl));
+      if (!res.ok) continue;
+      const json = await res.json();
+      if (json.error) throw new Error(json.error.message);
+      const vuelos = json.response || [];
+      const ahora = new Date();
+      const proximos = vuelos
+        .filter(v => {
+          if (!v.arr_time_utc) return false;
+          const eta = new Date(v.arr_time_utc.replace(' ','T') + 'Z');
+          const diff = (eta - ahora) / 60000;
+          return diff > -30 && diff < 180;
+        })
+        .sort((a,b) => new Date(a.arr_time_utc) - new Date(b.arr_time_utc))
+        .slice(0, 8);
+
+      renderVuelos(proximos);
+      document.getElementById('vuelosUpdate').textContent = 'Actualizado: ' + ahora.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+      localStorage.setItem('tr_vuelos_cache', JSON.stringify({ ts: Date.now(), data: proximos }));
+      return;
+    } catch(e) { continue; }
+  }
+  document.getElementById('vuelosContainer').innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;">Sin conexión. Reintentando...</div>';
+}
+
+const DESTINOS_PAIS = {
+  'GB': { dest: 'Calvià/Magaluf', precio: '40-55€', flag: '🇬🇧' },
+  'IE': { dest: 'Calvià/Magaluf', precio: '40-55€', flag: '🇮🇪' },
+  'DE': { dest: 'Playa/Residente', precio: '25-60€', flag: '🇩🇪' },
+  'AT': { dest: 'Playa', precio: '25-35€', flag: '🇦🇹' },
+  'CH': { dest: 'Playa', precio: '25-35€', flag: '🇨🇭' },
+  'BE': { dest: 'Playa', precio: '25-35€', flag: '🇧🇪' },
+  'PL': { dest: 'Playa', precio: '25-35€', flag: '🇵🇱' },
+  'SE': { dest: 'Variable', precio: '20-50€', flag: '🇸🇪' },
+  'NO': { dest: 'Variable', precio: '20-50€', flag: '🇳🇴' },
+  'DK': { dest: 'Variable', precio: '20-50€', flag: '🇩🇰' },
+  'ES': { dest: 'Palma centro', precio: '17-22€', flag: '🇪🇸' },
+  'MA': { dest: 'Sa Pobla/Manacor', precio: '45-70€', flag: '🇲🇦' },
+};
+
+function getDestInfo(v) {
+  const iata = v.dep_iata || '';
+  if (['MAD','BCN','VLC','SVQ','BIO','AGP'].includes(iata)) return DESTINOS_PAIS['ES'];
+  const country = v.airline_country || '';
+  return DESTINOS_PAIS[country] || { dest: 'Variable', precio: '20-40€', flag: '✈️' };
+}
+
+function renderVuelos(vuelos) {
+  if (vuelos.length === 0) {
+    document.getElementById('vuelosContainer').innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;">Sin vuelos próximos en las próximas 3 horas</div>';
+    return;
+  }
+  const ahora = new Date();
+  document.getElementById('vuelosContainer').innerHTML = vuelos.map(v => {
+    const eta = new Date(v.arr_time_utc.replace(' ','T') + 'Z');
+    const etaLocal = eta.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit', timeZone:'Europe/Madrid'});
+    const diffMin = Math.round((eta - ahora) / 60000);
+    const esSchengen = !['GB','IE','US','CA','MA','TN','EG'].includes(v.airline_country || '');
+    const tiempoParada = esSchengen ? 40 : 65;
+    const llegaParada = new Date(eta.getTime() + tiempoParada * 60000);
+    const llegaParadaStr = llegaParada.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit', timeZone:'Europe/Madrid'});
+    const dest = getDestInfo(v);
+    const diffStr = diffMin < 0 ? `Aterrizó hace ${Math.abs(diffMin)}min` : `En ${diffMin}min`;
+
+    return `<div class="vuelo-item">
+      <div class="vuelo-info">
+        <div class="vuelo-num">${dest.flag} ${v.flight_iata || v.flight_number || '—'}</div>
+        <div class="vuelo-orig">${v.dep_iata || '—'} · ${diffStr}</div>
+        <div class="vuelo-dest">${dest.dest} · ${dest.precio}</div>
+      </div>
+      <div class="vuelo-eta">
+        <div class="vuelo-hora">${etaLocal}</div>
+        <div class="vuelo-pax">Parada ~${llegaParadaStr}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getVuelosText() {
+  const cache = localStorage.getItem('tr_vuelos_cache');
+  if (!cache) return '';
+  try {
+    const { ts, data } = JSON.parse(cache);
+    if (Date.now() - ts > 30 * 60000) return '';
+    const ahora = new Date();
+    return data.slice(0,5).map(v => {
+      const dest = getDestInfo(v);
+      const eta = new Date(v.arr_time_utc.replace(' ','T') + 'Z');
+      const etaLocal = eta.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit', timeZone:'Europe/Madrid'});
+      const esSchengen = !['GB','IE','US','CA','MA'].includes(v.airline_country || '');
+      const tiempoParada = esSchengen ? 40 : 65;
+      const llegaParada = new Date(eta.getTime() + tiempoParada * 60000);
+      const llegaParadaStr = llegaParada.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit', timeZone:'Europe/Madrid'});
+      return `${dest.flag} ${v.flight_iata} desde ${v.dep_iata} · ETA ${etaLocal} · Parada ~${llegaParadaStr} · Destino probable: ${dest.dest} (${dest.precio})`;
+    }).join('\n');
+  } catch(e) { return ''; }
+}
+
+function showAiResponse(type, text, recom, nivel='') {
+  const el = document.getElementById('aiResponse');
+  el.classList.add('show');
+  document.getElementById('aiText').textContent = text;
+  const recomEl = document.getElementById('aiRecom');
+  recomEl.textContent = recom;
+  recomEl.className = 'ai-recom' + (nivel ? ' ' + nivel : '');
+}
+
+function speakText(text) {
+  if (!window.speechSynthesis || !text) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'es-ES';
+  utt.rate = 1.1;
+  utt.volume = 1;
+  window.speechSynthesis.speak(utt);
+}
+
+function addHistorial(accion, resultado) {
+  const hora = new Date().toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+  historial.unshift({ hora, accion: accion.slice(0,30), resultado: resultado.slice(0,60) });
+  if (historial.length > 10) historial.pop();
+  renderHistorial();
+}
+function renderHistorial() {
+  const section = document.getElementById('historialSection');
+  const list = document.getElementById('historialList');
+  if (historial.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = historial.map(h =>
+    `<div class="hist-item">
+      <span><span class="hist-hora">${h.hora}</span> · ${h.accion}</span>
+      <span style="color:var(--text);max-width:200px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.resultado}</span>
+    </div>`
+  ).join('');
+}
+
+window.onload = () => {
+  const ck = localStorage.getItem('tr_claude_key');
+  const ak = localStorage.getItem('al_key');
+  const lic = localStorage.getItem('tr_licencia');
+  const toldos = localStorage.getItem('tr_toldos');
+  if (ck) document.getElementById('claudeKeyInput').value = ck;
+  if (ak) document.getElementById('airlabsKeyInput').value = ak;
+  if (lic) document.getElementById('licenciaInput').value = lic;
+  if (toldos) document.getElementById('toldosInput').value = toldos;
+  updateStatusPills();
+  initGPS();
+  initSpeech();
+  const cache = localStorage.getItem('tr_vuelos_cache');
+  if (cache) {
+    try {
+      const { data } = JSON.parse(cache);
+      if (data) renderVuelos(data);
+    } catch(e) {}
+  }
+};
+</script>
+</body>
+</html>
