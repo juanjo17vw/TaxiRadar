@@ -671,6 +671,36 @@ function getDestInfo(v) {
   return DESTINOS_PAIS[country] || { dest: 'Variable', precio: '20-40€', flag: '✈️' };
 }
 
+const CIUDADES_IATA = {
+  'MAD':'Madrid','BCN':'Barcelona','VLC':'Valencia','SVQ':'Sevilla','BIO':'Bilbao',
+  'AGP':'Málaga','PMI':'Palma','LPA':'Gran Canaria','TFN':'Tenerife Norte',
+  'TFS':'Tenerife Sur','IBZ':'Ibiza','MAH':'Menorca','ALC':'Alicante',
+  'LHR':'Londres Heathrow','LGW':'Londres Gatwick','STN':'Londres Stansted',
+  'LTN':'Londres Luton','MAN':'Manchester','BHX':'Birmingham','EDI':'Edimburgo',
+  'GLA':'Glasgow','BRS':'Bristol','NCL':'Newcastle','LPL':'Liverpool',
+  'DUB':'Dublín','ORK':'Cork',
+  'CDG':'París CDG','ORY':'París Orly','NCE':'Niza','LYS':'Lyon','MRS':'Marsella',
+  'FRA':'Fráncfort','MUC':'Múnich','DUS':'Düsseldorf','HAM':'Hamburgo',
+  'TXL':'Berlín','BER':'Berlín','STR':'Stuttgart','CGN':'Colonia',
+  'LEJ':'Leipzig','HAJ':'Hannover','NUE':'Núremberg','FMO':'Münster',
+  'VIE':'Viena','ZRH':'Zúrich','GVA':'Ginebra','BSL':'Basilea',
+  'BRU':'Bruselas','AMS':'Ámsterdam','EIN':'Eindhoven',
+  'ARN':'Estocolmo','OSL':'Oslo','CPH':'Copenhague','HEL':'Helsinki',
+  'WAW':'Varsovia','KRK':'Cracovia','GDN':'Gdansk',
+  'FCO':'Roma','MXP':'Milán Malpensa','LIN':'Milán Linate','VCE':'Venecia',
+  'NAP':'Nápoles','BGY':'Bérgamo','BLQ':'Bolonia',
+  'LIS':'Lisboa','OPO':'Oporto',
+  'CMN':'Casablanca','NDR':'Nador','TNG':'Tánger','RAK':'Marrakech',
+  'JFK':'Nueva York','EWR':'Nueva York','LAX':'Los Ángeles','MIA':'Miami',
+  'YYZ':'Toronto','YUL':'Montreal',
+  'GRU':'São Paulo','EZE':'Buenos Aires','BOG':'Bogotá','LIM':'Lima',
+};
+
+function getCiudadOrigen(v) {
+  const iata = v.dep_iata || '';
+  return CIUDADES_IATA[iata] || iata || '—';
+}
+
 function renderVuelos(vuelos) {
   if (vuelos.length === 0) {
     document.getElementById('vuelosContainer').innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;">Sin vuelos próximos en las próximas 3 horas</div>';
@@ -687,10 +717,11 @@ function renderVuelos(vuelos) {
     const llegaParadaStr = llegaParada.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit', timeZone:'Europe/Madrid'});
     const dest = getDestInfo(v);
     const diffStr = diffMin < 0 ? `Aterrizó hace ${Math.abs(diffMin)}min` : `En ${diffMin}min`;
+    const ciudad = getCiudadOrigen(v);
 
     return `<div class="vuelo-item">
       <div class="vuelo-info">
-        <div class="vuelo-num">${dest.flag} ${v.flight_iata || v.flight_number || '—'}</div>
+        <div class="vuelo-num">${dest.flag} ${ciudad}</div>
         <div class="vuelo-orig">${v.dep_iata || '—'} · ${diffStr}</div>
         <div class="vuelo-dest">${dest.dest} · ${dest.precio}</div>
       </div>
